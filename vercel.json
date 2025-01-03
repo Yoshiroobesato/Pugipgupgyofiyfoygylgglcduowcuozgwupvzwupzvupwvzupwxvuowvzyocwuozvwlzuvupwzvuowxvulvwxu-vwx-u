@@ -2,23 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/**/*.js",
+      "src": "api/channel.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/getPlaybackUrl(.*)",
-      "dest": "/api/getPlaybackUrl.js",
-      "methods": ["GET", "OPTIONS"],
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization"
-      }
+      "src": "/api/channel",
+      "dest": "/api/channel.js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
