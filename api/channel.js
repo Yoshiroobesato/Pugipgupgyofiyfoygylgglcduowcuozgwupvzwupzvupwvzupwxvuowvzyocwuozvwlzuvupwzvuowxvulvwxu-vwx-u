@@ -1,7 +1,7 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+const https = require('https');
+const { parse } = require('querystring');
 
-module.exports = async (req, res) => {
+module.exports = (req, res) => {
     const { channel } = req.query; // Obtener el canal desde la consulta ?channel=espn1
 
     if (!channel) {
@@ -11,44 +11,50 @@ module.exports = async (req, res) => {
     try {
         // URL dinámica en función del canal proporcionado
         const url = `https://streamtp2.com/global1.php?stream=${channel}`;
-        
-        // Realizamos la solicitud HTTP
-        const response = await axios.get(url);
 
-        // Usamos Cheerio para cargar el HTML de la página
-        const $ = cheerio.load(response.data);
-        
-        // Buscamos la variable playbackURL en el HTML
-        const playbackURL = $("script")
-            .toArray()
-            .map(script => script.children[0] ? script.children[0].data : "")
-            .find(data => data.includes("playbackURL"));
+        // Realizar la solicitud HTTP
+        https.get(url, (response) => {
+            let data = '';
 
-        // Extraemos el URL de la variable playbackURL
-        const urlMatch = playbackURL ? playbackURL.match(/"([^"]+)"/) : null;
-        const extractedUrl = urlMatch ? urlMatch[1] : null;
+            // Recibir los datos en fragmentos
+            response.on('data', (chunk) => {
+                data += chunk;
+            });
 
-        if (extractedUrl) {
-            // Crear el objeto JSON de la respuesta
-            const jsonResponse = {
-                playbackURL: extractedUrl,
-                p2pConfig: {
-                    live: true,
-                    trackerZone: 'us',
-                    channel: channel,
-                    additionalInfo: {
-                        region: 'US',
-                        quality: 'HD'
+            // Procesar los datos cuando se reciban completamente
+            response.on('end', () => {
+                try {
+                    // Buscar la variable playbackURL en el HTML
+                    const playbackURLMatch = data.match(/playbackURL\s*=\s*"([^"]+)"/);
+                    const extractedUrl = playbackURLMatch ? playbackURLMatch[1] : null;
+
+                    if (extractedUrl) {
+                        // Crear el objeto JSON de la respuesta
+                        const jsonResponse = {
+                            playbackURL: extractedUrl,
+                            p2pConfig: {
+                                live: true,
+                                trackerZone: 'us',
+                                channel: channel,
+                                additionalInfo: {
+                                    region: 'US',
+                                    quality: 'HD',
+                                },
+                            },
+                        };
+
+                        res.json(jsonResponse);
+                    } else {
+                        res.status(404).json({ error: 'No se pudo extraer el URL del canal' });
                     }
+                } catch (err) {
+                    res.status(500).json({ error: 'Error procesando los datos', details: err.message });
                 }
-            };
-
-            res.json(jsonResponse);
-        } else {
-            res.status(404).json({ error: 'No se pudo extraer el URL del canal' });
-        }
-    } catch (error) {
-        console.error('Error al obtener la página:', error);
-        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+            });
+        }).on('error', (err) => {
+            res.status(500).json({ error: 'Error realizando la solicitud HTTP', details: err.message });
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Error interno del servidor', details: err.message });
     }
 };
