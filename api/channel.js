@@ -1,61 +1,62 @@
-const https = require('https');
+const express = require('express');
+const axios = require('axios');
+const cheerio = require('cheerio');
 
-module.exports = (req, res) => {
-    const { channel } = req.query; // Obtener el canal desde la consulta ?channel=espn1
+const app = express();
+const port = 3000;
+
+app.get('/', async (req, res) => {
+    const channel = req.query.channel; // Obtener el canal de la consulta ?channel=espn1
 
     if (!channel) {
         return res.status(400).json({ error: 'El parámetro "channel" es obligatorio' });
     }
 
-    // URL dinámica en función del canal proporcionado
-    const url = `https://streamtp2.com/global1.php?stream=${channel}`;
+    try {
+        // URL dinámica en función del canal proporcionado
+        const url = `https://streamtp2.com/global1.php?stream=${channel}`;
+        
+        // Realizamos la solicitud HTTP
+        const response = await axios.get(url);
 
-    https.get(url, (response) => {
-        let data = '';
+        // Usamos Cheerio para cargar el HTML de la página
+        const $ = cheerio.load(response.data);
+        
+        // Buscamos la variable playbackURL en el HTML
+        const playbackURL = $("script")
+            .toArray()
+            .map(script => script.children[0] ? script.children[0].data : "")
+            .find(data => data.includes("playbackURL"));
 
-        // Recibir los datos en fragmentos
-        response.on('data', (chunk) => {
-            data += chunk;
-        });
+        // Extraemos el URL de la variable playbackURL
+        const urlMatch = playbackURL.match(/"([^"]+)"/);
+        const extractedUrl = urlMatch ? urlMatch[1] : null;
 
-        // Procesar los datos cuando se reciban completamente
-        response.on('end', () => {
-            try {
-                // Buscar el inicio de la variable playbackURL
-                const startIndex = data.indexOf('playbackURL');
-                if (startIndex === -1) {
-                    return res.status(404).json({ error: 'No se pudo encontrar playbackURL en el HTML' });
+        if (extractedUrl) {
+            // Crear el objeto JSON de la respuesta
+            const jsonResponse = {
+                playbackURL: extractedUrl,
+                p2pConfig: {
+                    live: true,
+                    trackerZone: 'us',
+                    channel: channel,
+                    additionalInfo: {
+                        region: 'US',
+                        quality: 'HD'
+                    }
                 }
+            };
 
-                // Buscar el inicio y fin del valor de playbackURL
-                const urlStart = data.indexOf('"', startIndex) + 1;
-                const urlEnd = data.indexOf('"', urlStart);
-                const playbackURL = data.slice(urlStart, urlEnd);
+            res.json(jsonResponse);
+        } else {
+            res.status(404).json({ error: 'No se pudo extraer el URL del canal' });
+        }
+    } catch (error) {
+        console.error('Error al obtener la página:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
 
-                if (playbackURL) {
-                    // Crear la respuesta JSON
-                    const jsonResponse = {
-                        playbackURL: playbackURL,
-                        p2pConfig: {
-                            live: true,
-                            trackerZone: 'us',
-                            channel: channel,
-                            additionalInfo: {
-                                region: 'US',
-                                quality: 'HD',
-                            },
-                        },
-                    };
-
-                    return res.json(jsonResponse);
-                } else {
-                    return res.status(404).json({ error: 'No se pudo extraer playbackURL' });
-                }
-            } catch (error) {
-                return res.status(500).json({ error: 'Error procesando los datos', details: error.message });
-            }
-        });
-    }).on('error', (err) => {
-        res.status(500).json({ error: 'Error realizando la solicitud HTTP', details: err.message });
-    });
-};
+app.listen(port, () => {
+    console.log(`Servidor escuchando en http://localhost:${port}`);
+});
