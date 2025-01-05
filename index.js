@@ -1,47 +1,40 @@
-const https = require("https");
+import axios from "axios";
+import cheerio from "cheerio";
 
-// Función auxiliar para realizar solicitudes HTTPS
-function fetchPlaybackURL(targetURL, callback) {
-  const regex = /var playbackURL = "(.*?)";/;
-
-  https.get(targetURL, (res) => {
-    let data = "";
-
-    res.on("data", (chunk) => {
-      data += chunk;
-    });
-
-    res.on("end", () => {
-      const match = data.match(regex);
-      if (match && match[1]) {
-        callback(null, match[1]);
-      } else {
-        callback("playbackURL not found");
-      }
-    });
-  }).on("error", (err) => {
-    callback(err.message);
-  });
-}
-
-export default function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method === "GET") {
     const { url } = req.query;
 
+    // Verificar si se proporcionó la URL
     if (!url) {
-      res.status(400).json({ error: "Missing 'url' query parameter" });
-      return;
+      return res.status(400).json({ error: "Missing 'url' query parameter" });
     }
 
-    fetchPlaybackURL(url, (err, playbackURL) => {
-      if (err) {
-        res.status(500).json({ error: err });
+    try {
+      // Solicitar la página usando Axios
+      const response = await axios.get(url);
+
+      // Cargar el HTML en Cheerio
+      const $ = cheerio.load(response.data);
+
+      // Buscar el valor de playbackURL usando una expresión regular
+      const scriptText = $("script")
+        .map((i, el) => $(el).html())
+        .get()
+        .join(" ");
+      const regex = /var playbackURL = "(.*?)";/;
+      const match = scriptText.match(regex);
+
+      if (match && match[1]) {
+        return res.status(200).json({ playbackURL: match[1] });
       } else {
-        res.status(200).json({ playbackURL });
+        return res.status(404).json({ error: "playbackURL not found" });
       }
-    });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
   } else {
     res.setHeader("Allow", ["GET"]);
-    res.status(405).json({ error: "Method Not Allowed" });
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 }
