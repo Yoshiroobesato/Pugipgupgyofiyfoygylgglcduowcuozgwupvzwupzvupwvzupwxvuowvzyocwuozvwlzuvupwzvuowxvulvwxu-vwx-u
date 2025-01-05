@@ -1,104 +1,88 @@
-// api/index.js
-async function fetchWithTimeout(url, timeout = 5000) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
+const express = require('express');
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+const app = express();
+
+// Middleware de atribución
+app.use((req, res, next) => {
+    res.setHeader('X-Powered-By', 'UltraTV');
+    next();
+});
+
+// Manejador de errores personalizados
+const errorHandler = (err, req, res, next) => {
+    console.error(err.stack);
+    const statusCode = err.statusCode || 500;
+    const message = err.message || 'Internal Server Error';
+    
+    res.status(statusCode).json({
+        error: {
+            status: statusCode,
+            message: message,
+            attribution: 'Powered by UltraTV - https://ultratv.neocities.org/'
+        }
     });
-    clearTimeout(id);
-    return response;
-  } catch (error) {
-    clearTimeout(id);
-    throw error;
-  }
-}
+});
 
-export default async function handler(req, res) {
-  // Habilitar CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+// Ruta para obtener la tabla de posiciones de la Premier League
+app.get('/api/liga/inglaterra/tabla', async (req, res, next) => {
+    const url = 'https://www.tycsports.com/estadisticas/premier-league-de-inglaterra/tabla-de-posiciones.html';
 
-  // Manejar preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+    try {
+        const { data: html } = await axios.get(url);
+        const $ = cheerio.load(html);
 
-  // Solo permitir GET
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Método no permitido' });
-  }
+        const equipos = [];
+        $('tr').each((index, element) => {
+            const pos = $(element).find('.pos').text().trim();
+            const img = $(element).find('.escudo img').attr('data-src') || '';
+            const equipo = $(element).find('.equipo').text().trim();
+            const puntos = $(element).find('.puntos').eq(0).text().trim();
+            const pj = $(element).find('td').eq(4).text().trim();
+            const pg = $(element).find('td').eq(5).text().trim();
+            const pe = $(element).find('td').eq(6).text().trim();
+            const pp = $(element).find('td').eq(7).text().trim();
+            const gf = $(element).find('td').eq(8).text().trim();
+            const gc = $(element).find('td').eq(9).text().trim();
 
-  const { url } = req.query;
+            const equipoObj = { pos, img, equipo, puntos, pj, pg, pe, pp, gf, gc };
 
-  if (!url) {
-    return res.status(400).json({ error: 'Se requiere parámetro URL' });
-  }
-
-  try {
-    // Decodificar la URL si es necesario
-    const decodedUrl = decodeURIComponent(url);
-
-    // Validar URL
-    new URL(decodedUrl);
-
-    const response = await fetchWithTimeout(decodedUrl);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const text = await response.text();
-    
-    // Buscar la URL de reproducción con múltiples patrones
-    const patterns = [
-      /playbackURL\s*=\s*["'](.+?)["']/i,
-      /playback_url\s*=\s*["'](.+?)["']/i,
-      /hlsURL\s*=\s*["'](.+?)["']/i,
-      /source:\s*["'](.+?)["']/i,
-      /src:\s*["'](.+?)["']/i
-    ];
-
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
-      if (match && match[1]) {
-        return res.status(200).json({ 
-          success: true,
-          playbackURL: match[1],
-          timestamp: new Date().toISOString()
+            // Filtrar datos que coinciden con el encabezado o están vacíos
+            if (
+                !(equipoObj.pos === "Pos" &&
+                  equipoObj.img === "" &&
+                  equipoObj.equipo === "Equipo" &&
+                  equipoObj.puntos === "Pts" &&
+                  equipoObj.pj === "" &&
+                  equipoObj.pg === "" &&
+                  equipoObj.pe === "" &&
+                  equipoObj.pp === "" &&
+                  equipoObj.gf === "" &&
+                  equipoObj.gc === "")
+            ) {
+                equipos.push(equipoObj);
+            }
         });
-      }
+
+        res.json({
+            data: equipos,
+            attribution: 'Powered by UltraTV - https://ultratv.neocities.org/'
+        });
+    } catch (error) {
+        next(error);
     }
+});
 
-    // Si no se encuentra ninguna URL
-    return res.status(404).json({ 
-      success: false,
-      error: 'URL de reproducción no encontrada',
-      timestamp: new Date().toISOString()
-    });
+// Middleware para manejar rutas no encontradas
+app.use((req, res, next) => {
+    const error = new Error('Ruta no encontrada');
+    error.statusCode = 404;
+    next(error);
+});
 
-  } catch (error) {
-    console.error('Error:', error.message);
-    
-    return res.status(500).json({ 
-      success: false,
-      error: 'Error al procesar la solicitud',
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-}
+// Middleware de manejo de errores
+app.use(errorHandler);
 
-// Configuración de la API
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '1mb',
-    },
-  },
-}
+// Exportar la app para Vercel
+module.exports = app;
