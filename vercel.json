@@ -8,7 +8,7 @@
   ],
   "routes": [
     {
-      "src": "/api/channel",
+      "src": "getPlaybackURL",
       "dest": "index.js"
     }
   ]
