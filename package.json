@@ -1,8 +1,29 @@
 {
-  "name": "your-project-name",
+  "name": "ultratv-api",
   "version": "1.0.0",
-  "private": true,
+  "description": "API para obtener información de la Liga de Inglesa.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
   "dependencies": {
-    "axios": "^1.6.7"
-  }
+    "axios": "^1.4.0",
+    "cheerio": "^1.0.0-rc.12",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.x"
+  },
+  "keywords": [
+    "express",
+    "api",
+    "ultratv",
+    "liga-premier"
+  ],
+  "author": "Tu Nombre",
+  "license": "MIT"
 }
