@@ -1,62 +1,47 @@
-const express = require('express');
-const axios = require('axios');
-const cheerio = require('cheerio');
+import axios from "axios";
 
-const app = express();
-const port = 3000;
+export default async function handler(req, res) {
+  // Only allow GET requests
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-app.get('/', async (req, res) => {
-    const channel = req.query.channel; // Obtener el canal de la consulta ?channel=espn1
+  const { url } = req.query;
 
-    if (!channel) {
-        return res.status(400).json({ error: 'El parámetro "channel" es obligatorio' });
+  // Basic URL validation
+  if (!url) {
+    return res.status(400).json({ error: 'URL parameter is required' });
+  }
+
+  try {
+    // Simple GET request with minimal configuration
+    const response = await axios.get(url, {
+      timeout: 5000,
+      headers: {
+        'Accept': 'text/html',
+        'User-Agent': 'Mozilla/5.0 (compatible)'
+      }
+    });
+
+    // Simple regex to find the playback URL
+    const match = response.data.match(/var playbackURL = ["'](.*?)["'];/);
+    
+    if (match && match[1]) {
+      return res.status(200).json({ playbackURL: match[1] });
     }
 
-    try {
-        // URL dinámica en función del canal proporcionado
-        const url = `https://streamtp2.com/global1.php?stream=${channel}`;
-        
-        // Realizamos la solicitud HTTP
-        const response = await axios.get(url);
+    return res.status(404).json({ error: 'Playback URL not found' });
 
-        // Usamos Cheerio para cargar el HTML de la página
-        const $ = cheerio.load(response.data);
-        
-        // Buscamos la variable playbackURL en el HTML
-        const playbackURL = $("script")
-            .toArray()
-            .map(script => script.children[0] ? script.children[0].data : "")
-            .find(data => data.includes("playbackURL"));
+  } catch (error) {
+    console.error('Error:', error.message);
+    return res.status(500).json({ error: 'Failed to process request' });
+  }
+}
 
-        // Extraemos el URL de la variable playbackURL
-        const urlMatch = playbackURL.match(/"([^"]+)"/);
-        const extractedUrl = urlMatch ? urlMatch[1] : null;
-
-        if (extractedUrl) {
-            // Crear el objeto JSON de la respuesta
-            const jsonResponse = {
-                playbackURL: extractedUrl,
-                p2pConfig: {
-                    live: true,
-                    trackerZone: 'us',
-                    channel: channel,
-                    additionalInfo: {
-                        region: 'US',
-                        quality: 'HD'
-                    }
-                }
-            };
-
-            res.json(jsonResponse);
-        } else {
-            res.status(404).json({ error: 'No se pudo extraer el URL del canal' });
-        }
-    } catch (error) {
-        console.error('Error al obtener la página:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
-    }
-});
-
-app.listen(port, () => {
-    console.log(`Servidor escuchando en http://localhost:${port}`);
-});
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '1mb',
+    },
+  },
+}
