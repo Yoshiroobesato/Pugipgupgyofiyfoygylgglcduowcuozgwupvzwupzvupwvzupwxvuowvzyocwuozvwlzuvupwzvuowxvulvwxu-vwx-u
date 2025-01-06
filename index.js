@@ -25,46 +25,33 @@ const errorHandler = (err, req, res, next) => {
     });
 };
 
-// Ruta para obtener la tabla de posiciones
-app.get('/api/liga/englaterra/tabla', async (req, res, next) => {
-    const url = 'https://www.tycsports.com/estadisticas/premier-league-de-inglaterra/tabla-de-posiciones.html';
+// Ruta para obtener la tabla de posiciones de Italia
+app.get('/api/liga/italia/tabla', async (req, res, next) => {
+    const url = 'https://www.tycsports.com/estadisticas/serie-a-italia/tabla-de-posiciones.html';
 
     try {
         const { data: html } = await axios.get(url);
         const $ = cheerio.load(html);
 
         const equipos = [];
-     
-         $('tr').each((index, element) => {
-    const pos = $(element).find('.pos').text().trim();
-    const img = $(element).find('.escudo img').attr('data-src') || '';
-    const equipo = $(element).find('.equipo').text().trim();
-    const puntos = $(element).find('.puntos').eq(0).text().trim();
-    const pj = $(element).find('td').eq(4).text().trim();
-    const pg = $(element).find('td').eq(5).text().trim();
-    const pe = $(element).find('td').eq(6).text().trim();
-    const pp = $(element).find('td').eq(7).text().trim();
-    const gf = $(element).find('td').eq(8).text().trim();
-    const gc = $(element).find('td').eq(9).text().trim();
+        $('tr').each((index, element) => {
+            const pos = $(element).find('.pos').text().trim();
+            const img = $(element).find('.escudo img').attr('data-src') || '';
+            const equipo = $(element).find('.equipo').text().trim();
+            const puntos = $(element).find('.puntos').eq(0).text().trim();
+            const pj = $(element).find('td').eq(4).text().trim();
+            const pg = $(element).find('td').eq(5).text().trim();
+            const pe = $(element).find('td').eq(6).text().trim();
+            const pp = $(element).find('td').eq(7).text().trim();
+            const gf = $(element).find('td').eq(8).text().trim();
+            const gc = $(element).find('td').eq(9).text().trim();
 
-    const equipoObj = { pos, img, equipo, puntos, pj, pg, pe, pp, gf, gc };
+            const equipoObj = { pos, img, equipo, puntos, pj, pg, pe, pp, gf, gc };
 
-    // Eliminar si todos los datos coinciden con el ejemplo dado
-    if (
-        equipoObj.pos !== "Pos" ||
-        equipoObj.img !== "" ||
-        equipoObj.equipo !== "Equipo" ||
-        equipoObj.puntos !== "Pts" ||
-        equipoObj.pj !== "" ||
-        equipoObj.pg !== "" ||
-        equipoObj.pe !== "" ||
-        equipoObj.pp !== "" ||
-        equipoObj.gf !== "" ||
-        equipoObj.gc !== ""
-    ) {
-        equipos.push(equipoObj);
-    }
-});   
+            if (equipoObj.pos !== "Pos" && equipoObj.equipo !== "Equipo") {
+                equipos.push(equipoObj);
+            }
+        });
 
         res.json({
             data: equipos,
@@ -74,6 +61,82 @@ app.get('/api/liga/englaterra/tabla', async (req, res, next) => {
         next(error);
     }
 });
+
+// Ruta para obtener la tabla de posiciones de Alemania
+app.get('/api/liga/englaterra/tabla', async (req, res, next) => {
+    const url = 'https://www.tycsports.com/estadisticas/premier-league-de-inglaterra/tabla-de-posiciones.html';
+
+    try {
+        const { data: html } = await axios.get(url);
+        const $ = cheerio.load(html);
+
+        const equipos = [];
+        $('tr').each((index, element) => {
+            const pos = $(element).find('.pos').text().trim();
+            const img = $(element).find('.escudo img').attr('data-src') || '';
+            const equipo = $(element).find('.equipo').text().trim();
+            const puntos = $(element).find('.puntos').eq(0).text().trim();
+            const pj = $(element).find('td').eq(4).text().trim();
+            const pg = $(element).find('td').eq(5).text().trim();
+            const pe = $(element).find('td').eq(6).text().trim();
+            const pp = $(element).find('td').eq(7).text().trim();
+            const gf = $(element).find('td').eq(8).text().trim();
+            const gc = $(element).find('td').eq(9).text().trim();
+
+            const equipoObj = { pos, img, equipo, puntos, pj, pg, pe, pp, gf, gc };
+
+            if (equipoObj.pos !== "Pos" && equipoObj.equipo !== "Equipo") {
+                equipos.push(equipoObj);
+            }
+        });
+
+        res.json({
+            data: equipos,
+            attribution: 'Powered by UltraTV - https://ultratv.neocities.org/'
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Ruta para obtener la tabla de posiciones de Francia
+app.get('/api/liga/alemania/tabla', async (req, res, next) => {
+    const url = 'https://www.tycsports.com/estadisticas/bundesliga-alemania/tabla-de-posiciones.html';
+
+    try {
+        const { data: html } = await axios.get(url);
+        const $ = cheerio.load(html);
+
+        const equipos = [];
+        $('tr').each((index, element) => {
+            const pos = $(element).find('.pos').text().trim();
+            const img = $(element).find('.escudo img').attr('data-src') || '';
+            const equipo = $(element).find('.equipo').text().trim();
+            const puntos = $(element).find('.puntos').eq(0).text().trim();
+            const pj = $(element).find('td').eq(4).text().trim();
+            const pg = $(element).find('td').eq(5).text().trim();
+            const pe = $(element).find('td').eq(6).text().trim();
+            const pp = $(element).find('td').eq(7).text().trim();
+            const gf = $(element).find('td').eq(8).text().trim();
+            const gc = $(element).find('td').eq(9).text().trim();
+
+            const equipoObj = { pos, img, equipo, puntos, pj, pg, pe, pp, gf, gc };
+
+            if (equipoObj.pos !== "Pos" && equipoObj.equipo !== "Equipo") {
+                equipos.push(equipoObj);
+            }
+        });
+
+        res.json({
+            data: equipos,
+            attribution: 'Powered by UltraTV - https://ultratv.neocities.org/'
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+        
 
 // Ruta para obtener la agenda de una jornada
 app.get('/api/liga/espana/:jornada/agenda', async (req, res, next) => {
